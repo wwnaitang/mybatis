@@ -1,0 +1,7 @@
+<mapper namespace="cn.mingc.mybatis.test.dao.dao.IUserMapper">
+  <select id="queryUserById" parameterType="java.lang.String" resultType="cn.mingc.mybatis.test.dao.po.User">
+    SELECT userId, userName, age
+    FROM user
+    where userId = #{userId}
+  </select>
+</mapper>

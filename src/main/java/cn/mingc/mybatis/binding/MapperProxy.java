@@ -3,6 +3,7 @@ package cn.mingc.mybatis.binding;
 import cn.mingc.mybatis.session.SqlSession;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.Map;
 
 public class MapperProxy<T> implements InvocationHandler {
 
@@ -10,9 +11,12 @@ public class MapperProxy<T> implements InvocationHandler {
 
     private SqlSession sqlSession;
 
-    public MapperProxy(Class<T> clazz, SqlSession sqlSession) {
+    private Map<Method, MapperMethod> mapperMethodCache;
+
+    public MapperProxy(Class<T> clazz, SqlSession sqlSession, Map<Method, MapperMethod> cache) {
         this.mapperInterface = clazz;
         this.sqlSession = sqlSession;
+        this.mapperMethodCache = cache;
     }
 
     @Override
@@ -20,6 +24,16 @@ public class MapperProxy<T> implements InvocationHandler {
         if (Object.class.equals(method.getDeclaringClass())) {
             return method.invoke(this, args);
         }
-        return this.sqlSession.select(method.getName(), args == null || args.length == 0 ? null : args[0]);
+        MapperMethod mapperMethod = this.cachedMapperMethod(method);
+        return mapperMethod.execute(this.sqlSession, args);
+    }
+
+    private MapperMethod cachedMapperMethod(Method method) {
+        MapperMethod mapperMethod = this.mapperMethodCache.get(method);
+        if (mapperMethod == null) {
+            mapperMethod = new MapperMethod(this.sqlSession.getConfiguration(), this.mapperInterface, method);
+            this.mapperMethodCache.put(method, mapperMethod);
+        }
+        return mapperMethod;
     }
 }

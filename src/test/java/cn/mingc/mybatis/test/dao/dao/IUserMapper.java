@@ -1,9 +1,9 @@
 package cn.mingc.mybatis.test.dao.dao;
 
+import cn.mingc.mybatis.test.dao.po.User;
+
 public interface IUserMapper {
 
-    String loadUserName(String userId);
-
-    Integer loadUserCount();
+    User queryUserById(String userId);
 
 }

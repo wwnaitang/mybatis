@@ -2,8 +2,10 @@ package cn.mingc.mybatis.session;
 
 public interface SqlSession {
 
-    Object select(String statement, Object param);
+    Object selectOne(String statementName, Object[] args);
 
     <T> T getMapper(Class<T> clazz);
+
+    Configuration getConfiguration();
 
 }

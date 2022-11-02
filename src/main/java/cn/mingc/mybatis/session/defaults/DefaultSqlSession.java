@@ -1,32 +1,31 @@
 package cn.mingc.mybatis.session.defaults;
 
-import cn.mingc.mybatis.binding.MapperRegistry;
+import cn.mingc.mybatis.mapping.MappedStatement;
+import cn.mingc.mybatis.session.Configuration;
 import cn.mingc.mybatis.session.SqlSession;
 
 public class DefaultSqlSession implements SqlSession {
 
-    private MapperRegistry mapperRegistry;
+    private Configuration configuration;
 
-    public DefaultSqlSession(MapperRegistry mapperRegistry) {
-        this.mapperRegistry = mapperRegistry;
+    public DefaultSqlSession(Configuration configuration) {
+        this.configuration = configuration;
     }
 
     @Override
-    public Object select(String statement, Object param) {
-        if ("loadUserCount".equals(statement)) {
-            return 102;
-        } else if ("loadUserName".equals(statement)) {
-            if ("001".equals(param)) {
-                return "mingc";
-            } else {
-                return "zhangsan";
-            }
-        }
+    public Object selectOne(String statementName, Object[] args) {
+        MappedStatement statement = this.configuration.getMappedStatement(statementName);
+        System.out.println(statement.getSql());
         return null;
     }
 
     @Override
     public <T> T getMapper(Class<T> clazz) {
-        return mapperRegistry.getMapper(clazz, this);
+        return this.configuration.getMapper(clazz, this);
+    }
+
+    @Override
+    public Configuration getConfiguration() {
+        return this.configuration;
     }
 }

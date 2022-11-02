@@ -1,0 +1,5 @@
+<config>
+  <mappers>
+    <mapper>mappers/UserMapper.xml</mapper>
+  </mappers>
+</config>
