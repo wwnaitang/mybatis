@@ -10,7 +10,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class DefaultSqlSession implements SqlSession {
@@ -54,7 +56,13 @@ public class DefaultSqlSession implements SqlSession {
                 Object value = resultSet.getObject(i);
                 String columnName = metaData.getColumnName(i);
                 String setMethodName = "set" + columnName.substring(0, 1).toUpperCase() + columnName.substring(1);
-                Method setMethod = clazz.getMethod(setMethodName, value.getClass());
+                Method setMethod = null;
+                if (value.getClass().equals(Timestamp.class)) {
+                    setMethod = clazz.getMethod(setMethodName, Date.class);
+                    value = new Date(((Timestamp) value).getTime());
+                } else {
+                    setMethod = clazz.getMethod(setMethodName, value.getClass());
+                }
                 if (setMethod == null) {
                     continue;
                 }
