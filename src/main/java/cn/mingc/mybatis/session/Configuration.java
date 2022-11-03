@@ -1,19 +1,27 @@
 package cn.mingc.mybatis.session;
 
 import cn.mingc.mybatis.binding.MapperRegistry;
+import cn.mingc.mybatis.datasource.druid.DruidDataSourceFactory;
+import cn.mingc.mybatis.mapping.Environment;
 import cn.mingc.mybatis.mapping.MappedStatement;
+import cn.mingc.mybatis.transaction.jdbc.JdbcTransactionFactory;
+import cn.mingc.mybatis.type.TypeAliasRegistry;
 import java.util.HashMap;
 import java.util.Map;
 
 public class Configuration {
 
-    private MapperRegistry mapperRegistry;
+    private MapperRegistry mapperRegistry = new MapperRegistry();
 
-    private Map<String, MappedStatement> statementMap;
+    private Map<String, MappedStatement> statementMap = new HashMap<>();
+
+    private Environment environment;
+
+    private TypeAliasRegistry typeAliasRegistry = new TypeAliasRegistry();
 
     public Configuration() {
-        this.mapperRegistry = new MapperRegistry();
-        this.statementMap = new HashMap<>();
+        this.typeAliasRegistry.registerAlias("JDBC", JdbcTransactionFactory.class);
+        this.typeAliasRegistry.registerAlias("DRUID", DruidDataSourceFactory.class);
     }
 
     public <T> T getMapper(Class<T> clazz, SqlSession sqlSession) {
@@ -30,5 +38,17 @@ public class Configuration {
 
     public MappedStatement getMappedStatement(String msid) {
         return this.statementMap.get(msid);
+    }
+
+    public TypeAliasRegistry getTypeAliasRegistry() {
+        return this.typeAliasRegistry;
+    }
+
+    public void setEnvironment(Environment environment) {
+        this.environment = environment;
+    }
+
+    public Environment getEnvironment() {
+        return environment;
     }
 }

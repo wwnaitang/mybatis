@@ -23,7 +23,8 @@ public class ApiTest {
         SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(reader);
         SqlSession sqlSession = sqlSessionFactory.openSession();
         IUserMapper userMapper = sqlSession.getMapper(IUserMapper.class);
-        userMapper.queryUserById("1002");
+        User user = userMapper.queryUserById("10001");
+        System.out.println(user);
     }
 
 }

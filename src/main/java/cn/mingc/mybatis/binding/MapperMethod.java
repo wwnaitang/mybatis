@@ -5,6 +5,7 @@ import cn.mingc.mybatis.mapping.SqlCommandType;
 import cn.mingc.mybatis.session.Configuration;
 import cn.mingc.mybatis.session.SqlSession;
 import java.lang.reflect.Method;
+import java.sql.SQLException;
 
 public class MapperMethod {
 
@@ -18,7 +19,11 @@ public class MapperMethod {
         Object result = null;
         switch (this.sqlCommand.type) {
             case SELECT:
-                result = sqlSession.selectOne(this.sqlCommand.name, args);
+                try {
+                    result = sqlSession.selectOne(this.sqlCommand.name, args);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
                 break;
             case DELETE:
                 break;
