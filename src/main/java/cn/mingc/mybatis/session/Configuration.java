@@ -2,6 +2,8 @@ package cn.mingc.mybatis.session;
 
 import cn.mingc.mybatis.binding.MapperRegistry;
 import cn.mingc.mybatis.datasource.druid.DruidDataSourceFactory;
+import cn.mingc.mybatis.datasource.pooled.PooledDataSourceFactory;
+import cn.mingc.mybatis.datasource.unpooled.UnpooledDataSourceFactory;
 import cn.mingc.mybatis.mapping.Environment;
 import cn.mingc.mybatis.mapping.MappedStatement;
 import cn.mingc.mybatis.transaction.jdbc.JdbcTransactionFactory;
@@ -20,8 +22,13 @@ public class Configuration {
     private TypeAliasRegistry typeAliasRegistry = new TypeAliasRegistry();
 
     public Configuration() {
+        // transactionManager
         this.typeAliasRegistry.registerAlias("JDBC", JdbcTransactionFactory.class);
+
+        // datasource
         this.typeAliasRegistry.registerAlias("DRUID", DruidDataSourceFactory.class);
+        this.typeAliasRegistry.registerAlias("POOLED", PooledDataSourceFactory.class);
+        this.typeAliasRegistry.registerAlias("UNPOOLED", UnpooledDataSourceFactory.class);
     }
 
     public <T> T getMapper(Class<T> clazz, SqlSession sqlSession) {
