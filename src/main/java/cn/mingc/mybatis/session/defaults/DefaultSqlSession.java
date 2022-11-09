@@ -9,11 +9,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 public class DefaultSqlSession implements SqlSession {
 
@@ -28,12 +25,15 @@ public class DefaultSqlSession implements SqlSession {
         MappedStatement statement = this.configuration.getMappedStatement(statementName);
         Environment environment = this.configuration.getEnvironment();
         Connection connection = environment.getTransaction().getConnection();
-        PreparedStatement preparedStatement = connection.prepareStatement(statement.getSql());
-        for (int i = 0; i < args.length; i++) {
-            preparedStatement.setObject(i + 1, args[0]);
+        try (connection) {
+            PreparedStatement preparedStatement = connection.prepareStatement(statement.getSql());
+            for (int i = 0; i < args.length; i++) {
+                preparedStatement.setObject(i + 1, args[0]);
+            }
+            ResultSet resultSet = preparedStatement.executeQuery();
+            Thread.sleep(3000);
+            return this.resultSet2Obj(resultSet, Class.forName(statement.getResultType()));
         }
-        ResultSet resultSet = preparedStatement.executeQuery();
-        return this.resultSet2Obj(resultSet, Class.forName(statement.getResultType()));
     }
 
     @Override

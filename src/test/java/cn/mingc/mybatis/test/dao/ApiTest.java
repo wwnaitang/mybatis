@@ -12,8 +12,12 @@ import org.junit.Test;
 
 public class ApiTest {
 
+    public static void main(String[] args) throws InterruptedException {
+        new ApiTest().test_MapperProxyFactory();
+    }
+
     @Test
-    public void test_MapperProxyFactory() {
+    public void test_MapperProxyFactory() throws InterruptedException {
         Reader reader = null;
         try {
             reader = Resources.getResourceAsReader("mybatis-config.xml");
@@ -23,8 +27,28 @@ public class ApiTest {
         SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(reader);
         SqlSession sqlSession = sqlSessionFactory.openSession();
         IUserMapper userMapper = sqlSession.getMapper(IUserMapper.class);
-        User user = userMapper.queryUserById("10001");
-        System.out.println(user);
+        for (int i = 0; i < 10; i++) {
+            Thread thread = new Thread(new MyRunnable(userMapper, i));
+            thread.start();
+        }
+    }
+
+    class MyRunnable implements Runnable {
+        private int i;
+        private IUserMapper userMapper;
+
+        public MyRunnable(IUserMapper userMapper, int i) {
+            this.userMapper = userMapper;
+            this.i = i;
+        }
+
+        @Override
+        public void run() {
+            System.out.println("run in Thread " + i);
+            User user = userMapper.queryUserById("10001");
+            System.out.println(user);
+        }
+
     }
 
 }
