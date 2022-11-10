@@ -11,55 +11,121 @@ import javax.sql.DataSource;
 
 public class PooledDataSource implements DataSource {
 
-    private final UnpooledDataSource dataSource;
+    private final Logger logger = Logger.getLogger(PooledDataSource.class.getName());
 
-    private final PoolState pool;
+    private UnpooledDataSource dataSource;
 
-    private static final int MAX_ACTIVE_CONNECTION_COUNT = 3;
+    private final PoolState state;
 
-    private static final int MAX_IDLE_CONNECTION_COUNT = 1;
+    private long maxActiveConnectionSize = 10;
+
+    private long maxIdleConnectionSize = 5;
+
+    private long waitTimeOut = 5000;
+
+    private long maxBadConnectionCount = 3;
+
+    private long overTime = 5000;
 
     public PooledDataSource() {
         this.dataSource = new UnpooledDataSource();
-        this.pool = new PoolState();
+        this.state = new PoolState();
     }
 
-    public PooledConnection popConnection(String username, String password) throws SQLException {
-        PooledConnection connection = null;
-        while (connection == null) {
-            synchronized (pool) {
-                if (pool.activeConnections.size() < MAX_ACTIVE_CONNECTION_COUNT) {
-                    if (pool.idleConnections.size() > 0) {
-                        connection = pool.idleConnections.remove(0);
-                    } else {
-                        connection = new PooledConnection(this.dataSource.getConnection(), this);
-                    }
-                    pool.activeConnections.add(connection);
+    /**
+     * 回收链接
+     * @param connection
+     * @throws SQLException
+     */
+    public void pushConnection(PooledConnection connection) throws SQLException {
+        logger.info("回收链接...");
+        synchronized (this.state) {
+            this.state.activeConnections.remove(connection);
+            if (connection.isValid()) {
+                logger.info("链接有效");
+                this.state.checkoutTime += connection.getCheckoutTime();
+                if (!connection.getRealConnection().getAutoCommit()) {
+                    connection.getRealConnection().rollback();
+                }
+                if (this.state.idleConnections.size() < this.maxIdleConnectionSize) {
+                    logger.info("空闲链接列表不足，链接放到空闲列表");
+                    PooledConnection newConnection = new PooledConnection(
+                            connection.getRealConnection(), this);
+                    newConnection.setCreateTime(connection.getCreateTime());
+                    newConnection.setLatestUsedTime(connection.getLatestUsedTime());
+                    this.state.idleConnections.add(newConnection);
+                    this.state.notify();
                 } else {
-                    try {
-                        pool.wait();
-                    } catch (InterruptedException e) {
-                        break;
+                    logger.info("空闲链接列表已满，关闭链接");
+                    connection.getRealConnection().close();
+                    connection.invalidate();
+                }
+            } else {
+                logger.warning("无效的链接");
+                this.state.badConnectionCount++;
+            }
+        }
+    }
+
+    /**
+     * 获取链接
+     * @return
+     */
+    public PooledConnection popConnection(String username, String password) throws SQLException {
+        logger.info("获取链接...");
+        PooledConnection connection = null;
+        boolean isWaiting = false;
+        int localBadConnectionCount = 0;
+        long localWaitedTime = 0;
+        synchronized (this.state) {
+            while (connection == null) {
+                if (!this.state.idleConnections.isEmpty()) {
+                    logger.info("存在空闲链接，直接获取");
+                    connection = this.state.idleConnections.remove(0);
+                } else {
+                    if (this.state.activeConnections.size() < this.maxActiveConnectionSize) {
+                        logger.info("不存在空闲链接且活跃链接列表未满，创建新的链接");
+                        connection = new PooledConnection(this.dataSource.getConnection(username, password), this);
+                    } else {
+                        logger.info("无空闲链接且活跃链接列表已满，等待链接回收");
+                        try {
+                            if (!isWaiting) {
+                                this.state.waitingCount++;
+                            }
+                            long waitStart = System.currentTimeMillis();
+                            this.state.wait(this.waitTimeOut - localWaitedTime);
+                            long waitTime = System.currentTimeMillis() - waitStart;
+                            this.state.waitTime += waitTime;
+                            localWaitedTime += waitTime;
+                            if (localWaitedTime >= this.overTime) {
+                                throw new SQLException("获取链接超时");
+                            }
+                            logger.info("等待时长：" + waitTime);
+                        } catch (InterruptedException e) {
+                            throw new SQLException(e.getMessage(), e);
+                        }
+                    }
+                }
+
+                if (connection != null) {
+                    if (connection.isValid()) {
+                        logger.info("获取链接成功");
+                        connection.setLatestUsedTime(System.currentTimeMillis());
+                        this.state.activeConnections.add(connection);
+                    } else {
+                        logger.warning("获取链接无效");
+                        this.state.badConnectionCount++;
+                        localBadConnectionCount++;
+                        connection = null;
+                        if (localBadConnectionCount > this.maxBadConnectionCount) {
+                            throw new SQLException("无效的链接");
+                        }
                     }
                 }
             }
         }
+        logger.info(connection.getRealConnection().toString());
         return connection;
-    }
-
-    public void pushConnection(PooledConnection connection) throws SQLException {
-        synchronized (pool) {
-            pool.activeConnections.remove(connection);
-            if (!connection.getRealConnection().getAutoCommit()) {
-                connection.getRealConnection().rollback();
-            }
-            if (pool.idleConnections.size() < MAX_IDLE_CONNECTION_COUNT) {
-                pool.idleConnections.add(connection);
-            } else {
-                connection.getRealConnection().close();
-            }
-            pool.notify();
-        }
     }
 
     @Override
@@ -69,18 +135,7 @@ public class PooledDataSource implements DataSource {
 
     @Override
     public Connection getConnection(String username, String password) throws SQLException {
-        PooledConnection pooledConnection = this.popConnection(username, password);
-        return (Connection) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[] { Connection.class }, pooledConnection);
-    }
-
-    @Override
-    public <T> T unwrap(Class<T> clazz) throws SQLException {
-        return this.dataSource.unwrap(clazz);
-    }
-
-    @Override
-    public boolean isWrapperFor(Class<?> clazz) throws SQLException {
-        return this.dataSource.isWrapperFor(clazz);
+        return (Connection) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[] {Connection.class}, this.popConnection(username, password));
     }
 
     @Override
@@ -89,13 +144,13 @@ public class PooledDataSource implements DataSource {
     }
 
     @Override
-    public void setLogWriter(PrintWriter printWriter) throws SQLException {
-        this.dataSource.setLogWriter(printWriter);
+    public void setLogWriter(PrintWriter out) throws SQLException {
+        this.dataSource.setLogWriter(out);
     }
 
     @Override
-    public void setLoginTimeout(int i) throws SQLException {
-        this.dataSource.setLoginTimeout(i);
+    public void setLoginTimeout(int seconds) throws SQLException {
+        this.dataSource.setLoginTimeout(seconds);
     }
 
     @Override
@@ -108,32 +163,26 @@ public class PooledDataSource implements DataSource {
         return this.dataSource.getParentLogger();
     }
 
-    public String getDriver() {
-        return this.dataSource.getDriver();
+    @Override
+    public <T> T unwrap(Class<T> iface) throws SQLException {
+        return this.dataSource.unwrap(iface);
     }
 
-    public void setDriver(String driver) {
-        this.dataSource.setDriver(driver);
+    @Override
+    public boolean isWrapperFor(Class<?> iface) throws SQLException {
+        return this.dataSource.isWrapperFor(iface);
     }
 
-    public String getUrl() {
-        return this.dataSource.getUrl();
+    public void setDriverClassName(String driverClassName) {
+        this.dataSource.setDriverClassName(driverClassName);
     }
 
     public void setUrl(String url) {
         this.dataSource.setUrl(url);
     }
 
-    public String getUsername() {
-        return this.dataSource.getUsername();
-    }
-
     public void setUsername(String username) {
         this.dataSource.setUsername(username);
-    }
-
-    public String getPassword() {
-        return this.dataSource.getPassword();
     }
 
     public void setPassword(String password) {

@@ -24,14 +24,14 @@ public class DefaultSqlSession implements SqlSession {
     public Object selectOne(String statementName, Object[] args) throws Exception {
         MappedStatement statement = this.configuration.getMappedStatement(statementName);
         Environment environment = this.configuration.getEnvironment();
-        Connection connection = environment.getTransaction().getConnection();
-        try (connection) {
+        try (
+                Connection connection = environment.getTransaction().getConnection()
+        ) {
             PreparedStatement preparedStatement = connection.prepareStatement(statement.getSql());
             for (int i = 0; i < args.length; i++) {
                 preparedStatement.setObject(i + 1, args[0]);
             }
             ResultSet resultSet = preparedStatement.executeQuery();
-            Thread.sleep(3000);
             return this.resultSet2Obj(resultSet, Class.forName(statement.getResultType()));
         }
     }

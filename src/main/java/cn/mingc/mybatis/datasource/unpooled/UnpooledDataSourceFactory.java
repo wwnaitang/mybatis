@@ -11,7 +11,7 @@ public class UnpooledDataSourceFactory implements DataSourceFactory {
     @Override
     public DataSource getDataSource() {
         UnpooledDataSource dataSource = new UnpooledDataSource();
-        dataSource.setDriver(properties.getProperty("driver"));
+        dataSource.setDriverClassName(properties.getProperty("driver"));
         dataSource.setUrl(properties.getProperty("url"));
         dataSource.setUsername(properties.getProperty("username"));
         dataSource.setPassword(properties.getProperty("password"));
