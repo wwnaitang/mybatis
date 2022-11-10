@@ -1,76 +1,49 @@
 package cn.mingc.mybatis.mapping;
 
-import java.util.Map;
+import cn.mingc.mybatis.session.Configuration;
 
 public class MappedStatement {
 
+    private Configuration configuration;
+
     private String msid;
 
-    private String sql;
-
-    private String parameterType;
-
-    private String resultType;
-
-    private Map<Integer, String> parameter;
-
     private SqlCommandType commandType;
+
+    private BoundSql boundSql;
 
     public static class Builder {
 
         private MappedStatement statement;
 
-        public Builder(String msid, SqlCommandType commandType, String sql) {
+        public Builder(Configuration configuration, String msid, SqlCommandType commandType, BoundSql boundSql) {
             statement = new MappedStatement();
+            this.statement.configuration = configuration;
             this.statement.msid = msid;
             this.statement.commandType = commandType;
-            this.statement.sql = sql;
-        }
-
-        public Builder parameter(Map<Integer, String> parameter) {
-            this.statement.parameter = parameter;
-            return this;
-        }
-
-        public Builder parameterType(String parameterType) {
-            this.statement.parameterType = parameterType;
-            return this;
-        }
-
-        public Builder resultType(String resultType) {
-            this.statement.resultType = resultType;
-            return this;
+            this.statement.boundSql = boundSql;
         }
 
         public MappedStatement build() {
+            assert this.statement.configuration != null;
             assert this.statement.msid != null;
-            assert this.statement.sql != null;
-            assert this.statement.commandType != null;
             return this.statement;
         }
+    }
+
+    public Configuration getConfiguration() {
+        return configuration;
     }
 
     public String getMsid() {
         return msid;
     }
 
-    public String getSql() {
-        return sql;
-    }
-
-    public String getParameterType() {
-        return parameterType;
-    }
-
-    public String getResultType() {
-        return resultType;
-    }
-
-    public Map<Integer, String> getParameter() {
-        return parameter;
-    }
-
     public SqlCommandType getCommandType() {
         return commandType;
+    }
+
+    public BoundSql getBoundSql() {
+        return boundSql;
     }
 }

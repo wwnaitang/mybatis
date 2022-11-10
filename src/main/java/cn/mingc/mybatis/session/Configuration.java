@@ -4,6 +4,9 @@ import cn.mingc.mybatis.binding.MapperRegistry;
 import cn.mingc.mybatis.datasource.druid.DruidDataSourceFactory;
 import cn.mingc.mybatis.datasource.pooled.PooledDataSourceFactory;
 import cn.mingc.mybatis.datasource.unpooled.UnpooledDataSourceFactory;
+import cn.mingc.mybatis.executor.Executor;
+import cn.mingc.mybatis.executor.statement.StatementHandle;
+import cn.mingc.mybatis.mapping.BoundSql;
 import cn.mingc.mybatis.mapping.Environment;
 import cn.mingc.mybatis.mapping.MappedStatement;
 import cn.mingc.mybatis.transaction.jdbc.JdbcTransactionFactory;
@@ -57,5 +60,9 @@ public class Configuration {
 
     public Environment getEnvironment() {
         return environment;
+    }
+
+    public StatementHandle newStatementHandle(Executor executor, MappedStatement ms, Object[] parameters, ResultHandle resultHandle, BoundSql boundSql) {
+        return null;
     }
 }

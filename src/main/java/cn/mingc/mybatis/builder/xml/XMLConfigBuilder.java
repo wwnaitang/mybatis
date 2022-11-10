@@ -2,6 +2,7 @@ package cn.mingc.mybatis.builder.xml;
 
 import cn.mingc.mybatis.datasource.DataSourceFactory;
 import cn.mingc.mybatis.io.Resources;
+import cn.mingc.mybatis.mapping.BoundSql;
 import cn.mingc.mybatis.mapping.Environment;
 import cn.mingc.mybatis.mapping.MappedStatement;
 import cn.mingc.mybatis.mapping.MappedStatement.Builder;
@@ -106,8 +107,8 @@ public class XMLConfigBuilder {
                 }
 
                 String msid = namespace + "." + id;
-                MappedStatement statement = new Builder(msid, SqlCommandType.SELECT, sql).resultType(
-                        resultType).parameterType(parameterType).parameter(parameter).build();
+                BoundSql boundSql = new BoundSql(sql, parameterType, resultType, parameter);
+                MappedStatement statement = new Builder(configuration, msid, SqlCommandType.SELECT, boundSql).build();
 
                 configuration.addMappedStatement(statement);
             }

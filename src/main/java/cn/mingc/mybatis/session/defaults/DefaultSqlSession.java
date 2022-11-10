@@ -1,5 +1,6 @@
 package cn.mingc.mybatis.session.defaults;
 
+import cn.mingc.mybatis.mapping.BoundSql;
 import cn.mingc.mybatis.mapping.Environment;
 import cn.mingc.mybatis.mapping.MappedStatement;
 import cn.mingc.mybatis.session.Configuration;
@@ -23,16 +24,17 @@ public class DefaultSqlSession implements SqlSession {
     @Override
     public Object selectOne(String statementName, Object[] args) throws Exception {
         MappedStatement statement = this.configuration.getMappedStatement(statementName);
+        BoundSql boundSql = statement.getBoundSql();
         Environment environment = this.configuration.getEnvironment();
         try (
                 Connection connection = environment.getTransaction().getConnection()
         ) {
-            PreparedStatement preparedStatement = connection.prepareStatement(statement.getSql());
+            PreparedStatement preparedStatement = connection.prepareStatement(boundSql.getSql());
             for (int i = 0; i < args.length; i++) {
                 preparedStatement.setObject(i + 1, args[0]);
             }
             ResultSet resultSet = preparedStatement.executeQuery();
-            return this.resultSet2Obj(resultSet, Class.forName(statement.getResultType()));
+            return this.resultSet2Obj(resultSet, Class.forName(boundSql.getResultType()));
         }
     }
 
