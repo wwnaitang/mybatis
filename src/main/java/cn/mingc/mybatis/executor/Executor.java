@@ -9,6 +9,8 @@ import java.util.List;
 
 public interface Executor {
 
+    ResultHandle NO_RESULT_HANDLER = null;
+
     Transaction getTransaction();
 
     void commit(boolean required) throws SQLException;

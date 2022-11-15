@@ -22,8 +22,10 @@ public class SimpleExecutor extends BaseExecutor {
             ResultHandle resultHandle, BoundSql boundSql) throws SQLException {
         StatementHandle handle = configuration.newStatementHandle(this, ms, parameters, resultHandle, boundSql);
         Connection connection = transaction.getConnection();
-        Statement stmt = handle.prepare(connection);
-        handle.parameterize(stmt);
-        return handle.query(stmt, resultHandle);
+        try (connection) {
+            Statement stmt = handle.prepare(connection);
+            handle.parameterize(stmt);
+            return handle.query(stmt, resultHandle);
+        }
     }
 }

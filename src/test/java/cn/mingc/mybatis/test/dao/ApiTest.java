@@ -27,10 +27,10 @@ public class ApiTest {
         IUserMapper userDao = sqlSession.getMapper(IUserMapper.class);
 
         // 3. 测试验证
-        for (int i = 0; i < 50; i++) {
+//        for (int i = 0; i < 50; i++) {
             User user = userDao.queryUserById("10001");
             System.out.println(user);
-        }
+//        }
     }
 
     @Test
