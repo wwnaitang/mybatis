@@ -2,6 +2,7 @@ package cn.mingc.mybatis.test.dao;
 
 import cn.mingc.mybatis.datasource.pooled.PooledDataSource;
 import cn.mingc.mybatis.io.Resources;
+import cn.mingc.mybatis.reflection.property.PropertyNamer;
 import cn.mingc.mybatis.session.SqlSession;
 import cn.mingc.mybatis.session.SqlSessionFactory;
 import cn.mingc.mybatis.session.SqlSessionFactoryBuilder;
@@ -49,5 +50,32 @@ public class ApiTest {
         }
     }
 
+    @Test
+    public void test_PropertyNamer() {
+        assert PropertyNamer.method2Property("getA") == "a";
+        assert PropertyNamer.method2Property("getABC") == "ABC";
+        assert PropertyNamer.method2Property("getBanana") == "banana";
+        assert PropertyNamer.method2Property("setA") == "a";
+        assert PropertyNamer.method2Property("setABC") == "ABC";
+        assert PropertyNamer.method2Property("setBanana") == "banana";
+        assert PropertyNamer.method2Property("isA") == "a";
+        assert PropertyNamer.method2Property("isABC") == "ABC";
+        assert PropertyNamer.method2Property("isBanana") == "banana";
+        try {
+            PropertyNamer.method2Property("fillA");
+        } catch (Exception e) {
+            assert e instanceof RuntimeException;
+        }
+        try {
+            PropertyNamer.method2Property("fillABC");
+        } catch (Exception e) {
+            assert e instanceof RuntimeException;
+        }
+        try {
+            PropertyNamer.method2Property("fillBanana");
+        } catch (Exception e) {
+            assert e instanceof RuntimeException;
+        }
+    }
 
 }
