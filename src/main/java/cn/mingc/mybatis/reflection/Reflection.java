@@ -1,10 +1,14 @@
 package cn.mingc.mybatis.reflection;
 
+import cn.mingc.mybatis.reflection.invoker.GetFieldInvoker;
 import cn.mingc.mybatis.reflection.invoker.Invoker;
 import cn.mingc.mybatis.reflection.invoker.MethodInvoker;
+import cn.mingc.mybatis.reflection.invoker.SetFieldInvoker;
 import cn.mingc.mybatis.reflection.property.PropertyNamer;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ReflectPermission;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -13,11 +17,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Reflection {
 
-    private static boolean classCacheEnable = true;
+    private static boolean classCacheEnabled = true;
 
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
 
@@ -63,8 +68,8 @@ public class Reflection {
         }
     }
 
-    public Reflection forClass(Class<?> clazz) {
-        if (!classCacheEnable) {
+    public static Reflection forClass(Class<?> clazz) {
+        if (!classCacheEnabled) {
             return new Reflection(clazz);
         }
         if (REFLECTION_MAP.containsKey(clazz)) {
@@ -83,6 +88,42 @@ public class Reflection {
     }
 
     private void addFields(Class<?> clazz) {
+        Field[] fields = clazz.getDeclaredFields();
+        for (Field field : fields) {
+            if (canSetMethodAccessible()) {
+                field.setAccessible(true);
+            }
+            if (!field.isAccessible()) {
+                continue;
+            }
+            String fieldName = field.getName();
+            if (!getMethods.containsKey(fieldName)) {
+                addGetField(fieldName, field);
+            }
+            if (!setMethods.containsKey(fieldName)) {
+                int modifiers = field.getModifiers();
+                if (!(Modifier.isFinal(modifiers) && Modifier.isStatic(modifiers))) {
+                    addSetField(fieldName, field);
+                }
+            }
+        }
+        if (clazz.getSuperclass() != null) {
+            addFields(clazz.getSuperclass());
+        }
+    }
+
+    private void addGetField(String name, Field field) {
+        if (isValidPropertyName(name)) {
+            getMethods.put(name, new GetFieldInvoker(field));
+            getTypes.put(name, field.getType());
+        }
+    }
+
+    private void addSetField(String name, Field field) {
+        if (isValidPropertyName(name)) {
+            setMethods.put(name, new SetFieldInvoker(field));
+            setTypes.put(name, field.getType());
+        }
     }
 
     private void addGetMethods(Class<?> clazz) {
@@ -139,10 +180,27 @@ public class Reflection {
             String propertyName = PropertyNamer.method2Property(methodName);
             addMethodConflict(conflictingSetters, propertyName, method);
         }
+        resolveSetterConflicts(conflictingSetters);
     }
 
     private void resolveSetterConflicts(Map<String, List<Method>> conflictingSetters) {
-        // TODO
+        for (String propertyName : conflictingSetters.keySet()) {
+            List<Method> setters = conflictingSetters.get(propertyName);
+            if (setters.size() == 1) {
+                addSetMethod(propertyName, setters.get(0));
+            } else {
+                Class<?> getterReturnType = getTypes.get(propertyName);
+                if (getterReturnType == null) {
+                    throw new RuntimeException("无法从多个setter中确定一个用于" + propertyName);
+                }
+                Optional<Method> setter = setters.stream()
+                        .filter(v -> v.getParameterTypes()[0].equals(getterReturnType)).findFirst();
+                if (!setter.isPresent()) {
+                    throw new RuntimeException("无法从多个setter中确定一个用于" + propertyName);
+                }
+                addSetMethod(propertyName, setter.get());
+            }
+        }
     }
 
     private void addSetMethod(String name, Method setter) {
@@ -233,7 +291,7 @@ public class Reflection {
         }
     }
 
-    public static boolean canSetMethodAccessible() {
+    private boolean canSetMethodAccessible() {
         SecurityManager securityManager = System.getSecurityManager();
         if (securityManager != null) {
             try {
@@ -245,4 +303,43 @@ public class Reflection {
         return true;
     }
 
+    public Invoker getGetInvoker(String name) {
+        Invoker invoker = getMethods.get(name);
+        if (invoker == null) {
+            throw new NullPointerException("没有找到对应的Getter: " + name);
+        }
+        return invoker;
+    }
+
+    public Invoker getSetInvoker(String name) {
+        Invoker invoker = setMethods.get(name);
+        if (invoker == null) {
+            throw new NullPointerException("没有找到对应的Setter: " + name);
+        }
+        return invoker;
+    }
+
+    public static boolean isClassCacheEnabled() {
+        return classCacheEnabled;
+    }
+
+    public static void setClassCacheEnabled(boolean classCacheEnabled) {
+        Reflection.classCacheEnabled = classCacheEnabled;
+    }
+
+    public boolean hasGetter(String name) {
+        return getMethods.containsKey(name);
+    }
+
+    public boolean hasSetter(String name) {
+        return setMethods.containsKey(name);
+    }
+
+    public Class<?> getGetType(String name) {
+        return getTypes.get(name);
+    }
+
+    public Class<?> getSetType(String name) {
+        return setTypes.get(name);
+    }
 }
